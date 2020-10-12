@@ -15,7 +15,7 @@ def ejemplo_grafeno_real():
 def ejemplo_dispositivo_grafeno():
   return Disp.Image(requests.get(grafeno_disp).content);
 
-
+energy = -2;
 lat_c  = 0.246;
 lat_vec= lat_c*np.array(((1, 0), (0.5,0.5*np.sqrt(3))));
 orbs   = lat_c*np.array([(0, 0), (0, 1 / np.sqrt(3))]);
