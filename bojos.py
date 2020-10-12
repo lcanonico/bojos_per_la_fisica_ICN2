@@ -38,21 +38,20 @@ def create_system( L, W, sym=None, U=1.0, c=0.0, r0=(0,0), phi=0 ):
       if random()*100 <= c:
         return U*(random()-0.5);
       return 0.0;
-
-  def hopping(site_i, site_j):
-    xi, yi = site_i.pos
-    xj, yj = site_j.pos
-    return -2.8*np.exp(-0.5j * phi * (xi - xj) * (yi + yj))
   #incorporate anderson disorder as onsites
   syst[graphene.shape(shape, r0)] = anderson;
 
+  def hopping(site_i, site_j):
+    xi, yi = site_i.pos;
+    xj, yj = site_j.pos;
+    return -2.8*np.exp(-0.5j * phi * (xi - xj) * (yi + yj))
   #incorporate hoppings
   syst[graphene.neighbors()] = hopping;
 
   return syst;
 
 def crear_cable(L, W, U=1.0, c=0.0, phi=0 ):
-  return create_system(L, W, sym=None, U=U, c=c );
+  return create_system(L, W, sym=None, U=U, c=c,phi=phi );
 
 def agregar_contactos(syst,L, W):
     tdir=-graphene.vec((1,0));
@@ -93,7 +92,11 @@ def calcula_conductancia(fsyst,E0,nreal=1 ):
 
 def calcula_matriz_conductancia(fsyst,E0,nreal=1 ):
   C0 = 7.7480e-5;
-  return kwant.smatrix(fsyst, E0).conductance_matrix(); 
+  C = kwant.smatrix(fsyst,E0 ).conductance_matrix();
+  return C[:3,:3]; 
+
+def calcula_matriz_resistencia(fsyst,E0,nreal=1 ):
+  return np.linalg.inv(calcula_matriz_conductancia(fsyst,E0,nreal)); 
 
 
 def calcula_resistencia(fsyst,E0,nreal=1 ):
