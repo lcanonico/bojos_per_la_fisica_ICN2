@@ -22,11 +22,12 @@ orbs   = lat_c*np.array([(0, 0), (0, 1 / np.sqrt(3))]);
 graphene = kwant.lattice.general(lat_vec, orbs);
 a, b = graphene.sublattices
 
-def create_system( L, W, sym=None, U=1.0, c=0.0, r0=(0,0) ):
+def create_system( L, W, sym=None, U=1.0, c=0.0, r0=(0,0), phi=0 ):
 
   syst = kwant.Builder()
   if sym is not None:
-    syst = kwant.Builder(sym)
+    syst = kwant.Builder(sym);
+    phi = 0
     
   def shape(pos):
     x, y = pos;
@@ -38,21 +39,42 @@ def create_system( L, W, sym=None, U=1.0, c=0.0, r0=(0,0) ):
         return U*(random()-0.5);
       return 0.0;
 
+  def hopping(site_i, site_j):
+    xi, yi = site_i.pos
+    xj, yj = site_j.pos
+    return -2.8*np.exp(-0.5j * phi * (xi - xj) * (yi + yj))
   #incorporate anderson disorder as onsites
   syst[graphene.shape(shape, r0)] = anderson;
 
   #incorporate hoppings
-  syst[graphene.neighbors()] = -2.8;
+  syst[graphene.neighbors()] = hopping;
 
   return syst;
 
-def crear_cable(L, W, U=1.0, c=0.0 ):
+def crear_cable(L, W, U=1.0, c=0.0, phi=0 ):
   return create_system(L, W, sym=None, U=U, c=c );
 
 def agregar_contactos(syst,L, W):
     tdir=-graphene.vec((1,0));
     sym = kwant.TranslationalSymmetry(tdir);
     lead = create_system(L=L, W=W, sym=sym,r0=2*tdir );
+    syst.attach_lead(lead)
+    syst.attach_lead(lead.reversed())
+    return syst;
+
+def crear_barra_hall(syst,L, W):
+    #Contactos laterales
+    tdir=-graphene.vec((1,0));
+    r0  = 2*tdir;
+    sym = kwant.TranslationalSymmetry(tdir);
+    lead = create_system(L=L, W=W, sym=sym,r0=r0 );
+    syst.attach_lead(lead)
+    syst.attach_lead(lead.reversed())
+    #Contactos verticales
+    tdir=-graphene.vec((0,1));
+    r0  = L*graphene.vec((1,0));
+    sym = kwant.TranslationalSymmetry(tdir);
+    lead = create_system(L=L*2/3, W=W, sym=sym,r0=r0 );
     syst.attach_lead(lead)
     syst.attach_lead(lead.reversed())
     return syst;
@@ -68,6 +90,11 @@ def graficar_sistema( syst ):
 def calcula_conductancia(fsyst,E0,nreal=1 ):
   C0 = 7.7480e-5;
   return C0*np.mean([ kwant.smatrix(fsyst, E0).transmission(1, 0) for i in range(nreal)]); 
+
+def calcula_matriz_conductancia(fsyst,E0,nreal=1 ):
+  C0 = 7.7480e-5;
+  return kwant.smatrix(fsyst, E0).conductance_matrix(); 
+
 
 def calcula_resistencia(fsyst,E0,nreal=1 ):
 
