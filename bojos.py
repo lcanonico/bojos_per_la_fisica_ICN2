@@ -15,9 +15,11 @@ def ejemplo_grafeno_real():
 def ejemplo_dispositivo_grafeno():
   return Disp.Image(requests.get(grafeno_disp).content);
 
+Phi0 =  2.067833758e-6;
 energy = -2;
 lat_c  = 0.246;
 lat_vec= lat_c*np.array(((1, 0), (0.5,0.5*np.sqrt(3))));
+Area = np.sqrt(3)*0.5*lat_c*lat_c;
 orbs   = lat_c*np.array([(0, 0), (0, 1 / np.sqrt(3))]);
 graphene = kwant.lattice.general(lat_vec, orbs);
 a, b = graphene.sublattices
@@ -92,7 +94,7 @@ def calcula_conductancia(fsyst,E0,nreal=1 ):
 
 def calcula_matriz_conductancia(fsyst,E0,nreal=1 ):
   C0 = 7.7480e-5;
-  C = kwant.smatrix(fsyst,E0 ).conductance_matrix();
+  C = C0*kwant.smatrix(fsyst,E0 ).conductance_matrix();
   return C[:3,:3]; 
 
 def calcula_matriz_resistencia(fsyst,E0,nreal=1 ):
