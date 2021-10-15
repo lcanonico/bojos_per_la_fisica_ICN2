@@ -12,5 +12,5 @@ conda install --channel defaults conda python=3.6 --yes&>log
 conda update --channel defaults --all --yes&>log
 conda install -c conda-forge kwant &>log
 fi
-export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/site-packages
+export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.7/site-packages
 echo "All requested packages already installed."
