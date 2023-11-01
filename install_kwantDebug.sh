@@ -8,7 +8,7 @@ MINICONDA_PREFIX=/usr/local
 wget https://repo.continuum.io/miniconda/$MINICONDA_INSTALLER_SCRIPT&>log
 chmod +x $MINICONDA_INSTALLER_SCRIPT
 ./$MINICONDA_INSTALLER_SCRIPT -b -f -p $MINICONDA_PREFIX&>log
-conda install --channel defaults conda python=3.7 --yes&>log
+conda install --channel defaults conda python=3.10 --yes&>log
 conda update --channel defaults --all --yes&>log
 conda install -c conda-forge kwant &>log
 fi
