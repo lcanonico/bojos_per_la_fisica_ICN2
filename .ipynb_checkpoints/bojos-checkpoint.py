@@ -197,12 +197,13 @@ def intersectar_circulos(r1=1, r2=1, d=0):
         return r1 ** 2 * np.arccos(d1 / r1) - d1 * np.sqrt(r1 ** 2 - d1 ** 2) + \
                r2 ** 2 * np.arccos(d2 / r2) - d2 * np.sqrt(r2 ** 2 - d2 ** 2)
 
-def hamiltoniano_nanocable1D(k, e1=0, e2=0, t11=0, t22=0, t12=0):
-    return np.array([[e1+2*t11*np.cos(k), t12*np.exp(1j*k)], [t12*np.exp(-1j*k), e2+2*t22*np.cos(k)]])
+def hamiltoniano_nanocable1D(k, e1=0, e2=0, e3=0, t11=0, t22=0, t33=0, t12=0, t13=0, t23=0):
+    return np.array([[e1+2*t11*np.cos(k), t12*np.exp(1j*k), t13*np.exp(1j*k)], [t12*np.exp(-1j*k), e2+2*t22*np.cos(k), t23*np.exp(1j*k)], [t13*np.exp(-1j*k), t23*np.exp(-1j*k), e3+2*t33*np.cos(k)]])
 
-def graficar_acoplamientos_nanocable1D(radio1, radio2, distancia, e1=-10, e2=0):
-    t11, t12, t22 = intersectar_circulos(r1=radio1, r2=radio1, d=distancia), intersectar_circulos(r1=radio1, r2=radio2, d=distancia), intersectar_circulos(r1=radio2, r2=radio2, d=distancia)
-
+def graficar_acoplamientos_nanocable1D(radio1, radio2, radio3, distancia, e1=-15, e2=-5, e3=0):
+    t11, t22, t33 = -0.5*intersectar_circulos(r1=radio1, r2=radio1, d=distancia), -0.5*intersectar_circulos(r1=radio2, r2=radio2, d=distancia), -0.5*intersectar_circulos(r1=radio3, r2=radio3, d=distancia)
+    t12, t13, t23 = -0.5*intersectar_circulos(r1=radio1, r2=radio2, d=distancia), -0.5*intersectar_circulos(r1=radio1, r2=radio3, d=distancia), -0.5*intersectar_circulos(r1=radio2, r2=radio3, d=distancia)
+    
     fig = plt.figure(figsize=(10, 2.5))
 
     ax_orb = fig.add_axes([0, 0, 0.65, 1])
@@ -210,24 +211,25 @@ def graficar_acoplamientos_nanocable1D(radio1, radio2, distancia, e1=-10, e2=0):
     X = list([-distancia*n for n in range(1, int(x_lim/distancia)+5)[-1::-1]]) + [0] + list([distancia*n for n in range(1, int(x_lim/distancia)+5)])
     Phi = np.linspace(0, 1, 101) * np.pi
     for x in X:
+        ax_orb.fill_between(x+radio3*np.cos(Phi), y1=radio3*np.sin(Phi), y2=-radio3*np.sin(Phi), color=mpl.colormaps['coolwarm'](1.), alpha=0.2, zorder=-30)
+        ax_orb.fill_between(x+radio2*np.cos(Phi), y1=radio2*np.sin(Phi), y2=-radio2*np.sin(Phi), color=mpl.colormaps['coolwarm'](0.), alpha=0.4, zorder=-20)
+        ax_orb.fill_between(x+radio1*np.cos(Phi), y1=radio1*np.sin(Phi), y2=-radio1*np.sin(Phi), color='k', alpha=0.4, zorder=-10)
         ax_orb.plot([x], [0], markersize=10, color='k', linestyle='None', marker='o', zorder=0)
-        ax_orb.fill_between(x+radio1*np.cos(Phi), y1=radio1*np.sin(Phi), y2=-radio1*np.sin(Phi), color=mpl.colormaps['coolwarm'](0.), alpha=0.5, zorder=-10)
-        ax_orb.fill_between(x+radio2*np.cos(Phi), y1=radio2*np.sin(Phi), y2=-radio2*np.sin(Phi), color=mpl.colormaps['coolwarm'](1.), alpha=0.2, zorder=-20)
     ax_orb.set_xlim(-x_lim, x_lim)
     ax_orb.set_xlabel(r'posicion')
     ax_orb.set_title(r'acoplamiento de orbitales atomicos')
-    text = f'acoplamiento azul - azul : {t11}\n' + \
-           f'acoplamiento rojo - rojo : {t22}\n' + \
-           f'acoplamiento azul - rojo : {t12}'
-    print(text)
     
     ax_bandas = fig.add_axes([0.75, 0, 0.25, 1])
     K = np.linspace(-1, 1, 501) * np.pi
-    Evals, Evecs = np.linalg.eigh(np.array([hamiltoniano_nanocable1D(k, e1=e1, e2=e2, t11=t11, t12=t12, t22=t22) for k in K]), UPLO='U')
-    for n in range(2):
+    H = hamiltoniano_nanocable1D(0, e1=e1, e2=e2, e3=e3, t11=t11, t22=t22, t33=t33, t12=t12, t13=t13, t23=t23)
+    print(H)
+    Evals, Evecs = np.linalg.eigh(np.array([hamiltoniano_nanocable1D(k, e1=e1, e2=e2, e3=e3, t11=t11, t22=t22, t33=t33, t12=t12, t13=t13, t23=t23) for k in K]), UPLO='U')
+    for n in range(3):
         points = np.array([K, Evals[:, n]]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, colors=mpl.colormaps['coolwarm'](np.square(np.abs(Evecs[:, 1, n]))), linewidth=3)
+        colors = mpl.colormaps['coolwarm'](np.square(np.abs(Evecs[:, 2, n])))[:, :3]
+        colors = ((1 - np.square(np.abs(Evecs[:, 0, n]))) * colors.T).T
+        lc = LineCollection(segments, colors=colors, linewidth=3)
         ax_bandas.add_collection(lc)
     ax_bandas.set_xlim(-np.pi, np.pi)
     ax_bandas.set_xticks([-np.pi, 0, np.pi])
@@ -236,7 +238,6 @@ def graficar_acoplamientos_nanocable1D(radio1, radio2, distancia, e1=-10, e2=0):
     ax_bandas.set_ylim(Evals.min()-1, Evals.max()+1)
     ax_bandas.set_ylabel(r'energia')
     ax_bandas.set_title(r'bandas de energia')
-    return fig, [ax_orb, ax_bandas]
 
 def graficar_ondas_nanocable1D(dimerizacion=0, longitud_de_onda=4, N_celdas=5, banda=1):
     assert banda == 0 or banda == 1, 'inserte banda=0 o banda=1'
