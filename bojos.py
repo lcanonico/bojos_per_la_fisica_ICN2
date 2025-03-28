@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.collections import LineCollection
+import matplotlib.animation as animation
 
 from numpy.random import random
 welcome="Bibliotecas cargadas. ¡Bienvenidos!"
@@ -222,7 +223,6 @@ def graficar_acoplamientos_nanocable1D(radio1, radio2, radio3, distancia, e1=-15
     ax_bandas = fig.add_axes([0.75, 0, 0.25, 1])
     K = np.linspace(-1, 1, 501) * np.pi
     H = hamiltoniano_nanocable1D(0, e1=e1, e2=e2, e3=e3, t11=t11, t22=t22, t33=t33, t12=t12, t13=t13, t23=t23)
-    print(H)
     Evals, Evecs = np.linalg.eigh(np.array([hamiltoniano_nanocable1D(k, e1=e1, e2=e2, e3=e3, t11=t11, t22=t22, t33=t33, t12=t12, t13=t13, t23=t23) for k in K]), UPLO='U')
     for n in range(3):
         points = np.array([K, Evals[:, n]]).T.reshape(-1, 1, 2)
@@ -238,6 +238,8 @@ def graficar_acoplamientos_nanocable1D(radio1, radio2, radio3, distancia, e1=-15
     ax_bandas.set_ylim(Evals.min()-1, Evals.max()+1)
     ax_bandas.set_ylabel(r'energia')
     ax_bandas.set_title(r'bandas de energia')
+    
+    return fig, (ax_orb, ax_bandas)
 
 def graficar_ondas_nanocable1D(dimerizacion=0, longitud_de_onda=4, N_celdas=5, banda=1):
     assert banda == 0 or banda == 1, 'inserte banda=0 o banda=1'
@@ -279,3 +281,67 @@ def graficar_ondas_nanocable1D(dimerizacion=0, longitud_de_onda=4, N_celdas=5, b
     ax_onda.set_title(r'visualizacion de una onda en espacio real')
     
     return fig, [ax_bandas, ax_onda]
+    
+def graficar_ocupacion_luz(ph_energy, ph_amp, gap, e_lim=300, n_frames=25, mu=None, broadening=5):
+  if ph_amp >=100 or ph_amp <= 0:
+    print(r'la amplitud de la luz debe estar entre 0\% y 100\%')
+    return
+
+  k_lim = np.sqrt(e_lim ** 2 - gap ** 2 / 4)
+  K = np.linspace(-k_lim, k_lim, 301)
+  energy = np.linspace(-e_lim, e_lim, 501)
+  time = np.linspace(0, 1, n_frames)
+  if mu is None:
+    mu = -gap / 2
+
+  def FermiDirac(e, mu, broadening):
+    return 1 / (np.exp((e - mu) / broadening) + 1) if e <= mu else np.exp((mu - e) / broadening) / (1 + np.exp((mu - e) / broadening))
+
+  def time_function(t, t0 = 0.5):
+    return 1 / (1 + np.exp(-10 * (t - t0)))
+
+  def occupation_neq(t, ph_energy, ph_amp, energy=energy, mu=mu, broadening=broadening):
+    if ph_amp < 0 or ph_amp > 100:
+      print('La intensidad de la luz debe tomar un valor entre 0% y 100%')
+      return
+
+    fermidirac = np.array([FermiDirac(e, mu=mu, broadening=broadening) for e in energy])
+    transition_allowed = (FermiDirac(-ph_energy/2, mu=mu, broadening=broadening) - FermiDirac(ph_energy/2, mu=mu, broadening=broadening)) / 2
+    neq_peak_pos = time_function(t) * transition_allowed * ph_amp / 100 / np.cosh((energy - ph_energy / 2) / broadening)
+    neq_peak_neg = -time_function(t) * transition_allowed * ph_amp / 100 / np.cosh((energy + ph_energy / 2) / broadening)
+    return fermidirac + neq_peak_pos + neq_peak_neg
+
+  def update_plot(n, ph_energy=ph_energy, ph_amp=ph_amp, energy=energy, mu=mu, broadening=broadening):
+    occ_line.set_data(occupation_neq(time[n], ph_energy, ph_amp, energy=energy, mu=mu, broadening=broadening), energy);
+    occ_fill.set_data(occupation_neq(time[n], ph_energy, ph_amp, energy=energy, mu=mu, broadening=broadening), energy, -e_lim * np.ones(len(energy)))
+    t_fill.set_data([0, time[n]], [1, 1], [0, 0])
+    return [occ_line]
+
+  fig = plt.figure(figsize=(5, 5))
+  ax_time = fig.add_axes((0.1, 0.95, 0.85, 0.035))
+  ax_bands = fig.add_axes((0.2, 0.1, 0.35, 0.8))
+  ax_occ = fig.add_axes((0.6, 0.1, 0.35, 0.8))
+
+  ax_time.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False);
+  ax_time.set_xlim(0, 1);
+  ax_time.set_ylim(0, 1);
+  ax_time.text(0.5, 0.5, 'tiempo', horizontalalignment='center', verticalalignment='center')
+  t_fill = ax_time.fill_between([], [], color='tab:gray', alpha=0.7)
+
+  ax_bands.plot(K, -np.sqrt(K ** 2 + gap ** 2 / 4), color='tab:red', linewidth=4, linestyle='solid');
+  ax_bands.plot(K, np.sqrt(K ** 2 + gap ** 2 / 4), color='tab:red', linewidth=1);
+  ax_bands.set_xlim(-k_lim, k_lim);
+  ax_bands.tick_params(labelbottom=False, bottom=False);
+  ax_bands.set_xlabel(r'$k = \frac{2\pi}{longitud}$');
+  ax_bands.set_ylabel('energia [meV]');
+  ax_bands.set_ylim(-e_lim, e_lim);
+
+  ax_occ.set_xlim(-0., 1.1);
+  ax_occ.set_xlabel(r'ocupacion');
+  ax_occ.tick_params(labelleft=False);
+  ax_occ.set_ylim(-e_lim, e_lim);
+  occ_line, = ax_occ.plot([], [], color='tab:red', linewidth=4)
+  occ_fill = ax_occ.fill_between([], [], color='tab:red', alpha=0.7)
+
+  anim = animation.FuncAnimation(fig, update_plot, frames=n_frames, repeat=False)
+  return anim
